@@ -1,48 +1,66 @@
 from django.db import models
 from django.urls import reverse
-import uuid
-from django.db.models.constraints import UniqueConstraint
+from django.db.models import UniqueConstraint
 from django.db.models.functions import Lower
 
 class MyModelName(models.Model):
-    """모델 클래스를 정의하는 일반적인 클래스, Model 클래스로부터 파생됨."""
-    
-    # 필드
+    """A typical class defining a model, derived from the Model class."""
+
+    # Fields
     my_field_name = models.CharField(max_length=20, help_text='Enter field documentation')
+    ...
 
-    # 메타데이터
+    # Metadata
     class Meta:
-        ordering = ['-my_field_name']  # 필드를 오름차순으로 정렬합니다.
+        ordering = ['-my_field_name']
 
-    # 메서드
+    # Methods
     def get_absolute_url(self):
-        """MyModelName의 특정 인스턴스로 접근하는 URL을 반환합니다."""
+        """Returns the url to access a particular instance of MyModelName."""
         return reverse('model-detail-view', args=[str(self.id)])
-    
-    def __str__(self):
-        """MyModelName 객체를 문자열로 나타냅니다 (관리자 사이트 등에서)."""
-        return self.my_field_name
 
-# 장르 모델 추가
+    def __str__(self):
+        """String for representing the MyModelName object (in Admin site etc.)."""
+        return self.field_name
+
+
 class Genre(models.Model):
-    """책 장르를 나타내는 모델."""
-    name = models.CharField(max_length=200, help_text='Enter a book genre (e.g. Science Fiction, French Poetry etc.)')
+    """Model representing a book genre (e.g. Science Fiction, Non Fiction)."""
+    name = models.CharField(
+        max_length=200,
+        unique=True,
+        help_text="Enter a book genre (e.g. Science Fiction, French Poetry etc.)"
+    )
 
     def __str__(self):
-        """모델 객체를 문자열로 나타냅니다."""
+        """String for representing the Model object (in Admin site etc.)"""
         return self.name
-    
-# 언어 모델 추가
-class Language(models.Model):
-    """언어를 나타내는 모델 (예: 영어, 프랑스어, 일본어 등)"""
-    name = models.CharField(max_length=200, unique=True, help_text="Enter the book's natural language (e.g. English, French, Japanese etc.)")
 
     def get_absolute_url(self):
-        """특정 언어 인스턴스에 접근할 수 있는 URL 반환"""
+        """Returns the url to access a particular genre instance."""
+        return reverse('genre-detail', args=[str(self.id)])
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(
+                Lower('name'),
+                name='genre_name_case_insensitive_unique',
+                violation_error_message = "Genre already exists (case insensitive match)"
+            ),
+        ]
+
+class Language(models.Model):
+    """Model representing a Language (e.g. English, French, Japanese, etc.)"""
+    name = models.CharField(max_length=200,
+                            unique=True,
+                            help_text="Enter the book's natural language (e.g. English, French, Japanese etc.)")
+
+    def get_absolute_url(self):
+        """Returns the url to access a particular language instance."""
         return reverse('language-detail', args=[str(self.id)])
 
     def __str__(self):
-        """모델 객체를 나타내는 문자열 (Admin 사이트 등에서 사용)"""
+        """String for representing the Model object (in Admin site etc.)"""
         return self.name
 
     class Meta:
@@ -54,40 +72,66 @@ class Language(models.Model):
             ),
         ]
 
-# 책 모델 추가
 class Book(models.Model):
-    """책을 나타내는 모델 (특정 책 복사본이 아님)."""
+    """Model representing a book (but not a specific copy of a book)."""
     title = models.CharField(max_length=200)
-    author = models.ForeignKey('Author', on_delete=models.SET_NULL, null=True)
+    author = models.ForeignKey('Author', on_delete=models.RESTRICT, null=True)
+    # Foreign Key used because book can only have one author, but authors can have multiple books.
+    # Author as a string rather than object because it hasn't been declared yet in file.
+    summary = models.TextField(
+        max_length=1000, help_text="Enter a brief description of the book")
+    isbn = models.CharField('ISBN', max_length=13,
+                            unique=True,
+                            help_text='13 Character <a href="https://www.isbn-international.org/content/what-isbn'
+                                      '">ISBN number</a>')
+    genre = models.ManyToManyField(
+        Genre, help_text="Select a genre for this book")
+    # ManyToManyField used because a genre can contain many books and a Book can cover many genres.
+    # Genre class has already been defined so we can specify the object above.
+    language = models.ForeignKey(
+        'Language', on_delete=models.SET_NULL, null=True)
 
-    # ForeignKey를 사용한 이유: 책은 한 명의 저자만 가질 수 있지만, 저자는 여러 권의 책을 가질 수 있습니다.
-    # 'Author'를 문자열로 사용한 이유: 파일 내에서 아직 선언되지 않았기 때문입니다.
-    summary = models.TextField(max_length=1000, help_text='Enter a brief description of the book')
-    isbn = models.CharField('ISBN', max_length=13, help_text='13자리 <a href="https://www.isbn-international.org/content/what-isbn">ISBN 번호</a>')
+    class Meta:
+        ordering = ['title', 'author']
 
-    # ManyToManyField를 사용한 이유: 하나의 장르에 여러 권의 책이 포함될 수 있고, 책은 여러 장르를 다룰 수 있습니다.
-    # Genre 클래스는 이미 정의되었으므로 위의 객체를 지정할 수 있습니다.
-    genre = models.ManyToManyField(Genre, help_text='Select a genre for this book')
-    language = models.ForeignKey('Language', on_delete=models.SET_NULL, null=True)
+    def display_genre(self):
+        """Creates a string for the Genre. This is required to display genre in Admin."""
+        return ', '.join([genre.name for genre in self.genre.all()[:3]])
 
-    def __str__(self):
-        """모델 객체를 문자열로 나타냅니다."""
-        return self.title
-    
+    display_genre.short_description = 'Genre'
+
     def get_absolute_url(self):
-        """이 책의 상세 정보에 접근할 URL을 반환합니다."""
+        """Returns the url to access a particular book record."""
         return reverse('book-detail', args=[str(self.id)])
 
-# 복사본 모델 추가
+    def __str__(self):
+        """String for representing the Model object."""
+        return self.title
+
+
+import uuid  # Required for unique book instances
+from datetime import date
+
+from django.conf import settings  # Required to assign User as a borrower
+
+
 class BookInstance(models.Model):
-    """특정 책의 복사본을 나타내는 모델."""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, help_text='Unique ID for this particular book across whole library')
-    book = models.ForeignKey('Book', on_delete=models.SET_NULL, null=True)
+    """Model representing a specific copy of a book (i.e. that can be borrowed from the library)."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4,
+                          help_text="Unique ID for this particular book across whole library")
+    book = models.ForeignKey('Book', on_delete=models.RESTRICT, null=True)
     imprint = models.CharField(max_length=200)
     due_back = models.DateField(null=True, blank=True)
+    borrower = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+
+    @property
+    def is_overdue(self):
+        """Determines if the book is overdue based on due date and current date."""
+        return bool(self.due_back and date.today() > self.due_back)
 
     LOAN_STATUS = (
-        ('m', 'Maintenance'),
+        ('d', 'Maintenance'),
         ('o', 'On loan'),
         ('a', 'Available'),
         ('r', 'Reserved'),
@@ -97,31 +141,36 @@ class BookInstance(models.Model):
         max_length=1,
         choices=LOAN_STATUS,
         blank=True,
-        help_text='Book availability',
-    )
+        default='d',
+        help_text='Book availability')
 
     class Meta:
         ordering = ['due_back']
+        permissions = (("can_mark_returned", "Set book as returned"),)
+
+    def get_absolute_url(self):
+        """Returns the url to access a particular book instance."""
+        return reverse('bookinstance-detail', args=[str(self.id)])
 
     def __str__(self):
-        """모델 객체를 문자열로 나타냅니다."""
+        """String for representing the Model object."""
         return f'{self.id} ({self.book.title})'
 
-# 저자 모델 추가
+
 class Author(models.Model):
-    """저자를 나타내는 모델"""
+    """Model representing an author."""
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     date_of_birth = models.DateField(null=True, blank=True)
-    date_of_death = models.DateField('Died', null=True, blank=True)
+    date_of_death = models.DateField('died', null=True, blank=True)
 
     class Meta:
         ordering = ['last_name', 'first_name']
 
     def get_absolute_url(self):
-        """이 저자의 상세 정보에 접근할 URL을 반환합니다."""
+        """Returns the url to access a particular author instance."""
         return reverse('author-detail', args=[str(self.id)])
-    
+
     def __str__(self):
-        """모델 객체를 문자열로 나타냅니다."""
+        """String for representing the Model object."""
         return f'{self.last_name}, {self.first_name}'
