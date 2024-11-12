@@ -1,3 +1,5 @@
+# catalog에 대한 URL 설정을 하는 파일
+
 """
 URL configuration for locallibrary project.
 

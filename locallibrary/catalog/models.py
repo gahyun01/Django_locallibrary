@@ -1,3 +1,5 @@
+# 모델은 데이터베이스의 구조를 정의 ( 데이터베이스의 각 테이블은 모델 클래스로 표현 )
+
 from django.db import models
 from django.urls import reverse
 from django.db.models import UniqueConstraint

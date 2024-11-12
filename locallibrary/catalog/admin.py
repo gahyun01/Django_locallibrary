@@ -1,9 +1,11 @@
+# 관리자 페이지에 모델을 등록하는 코드를 작성하는 파일
+
 from django.contrib import admin
 from catalog.models import Author, Genre, Book, BookInstance, Language
 
 class BookInline(admin.TabularInline):
     model = Book
-    
+
 # admin.site.register(Author)
 class AuthorAdmin(admin.ModelAdmin):
     list_display = ('last_name', 'first_name', 'date_of_birth', 'date_of_death')
