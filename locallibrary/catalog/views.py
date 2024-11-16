@@ -29,11 +29,16 @@ def index(request):
     # 'all()' 은 기본적으로 암시되어 있음
     num_authors = Author.objects.count()
 
+    num_visits = request.session.get('num_visits', 0)
+    num_visits = num_visits + 1
+    request.session['num_visits'] = num_visits
+
     context = {
         'num_books': num_books,
         'num_instances': num_instances,
         'num_instances_available': num_instances_available,
         'num_authors': num_authors,
+        'num_visits': num_visits,
         'books': books.count(),
         'instances_available': instances_available.count(),
     }
