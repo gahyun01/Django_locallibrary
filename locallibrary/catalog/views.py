@@ -1,10 +1,18 @@
 # HTML과 데이터를 렌더링하는 Django 뷰 함수를 작성
 
 from django.shortcuts import render
-from .models import Book, Author, BookInstance, Genre, Language
 from django.views import generic
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth.mixins import PermissionRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+from django.shortcuts import get_object_or_404
+from django.http import HttpResponseRedirect
+from django.urls import reverse, reverse_lazy
+from django.contrib.auth.decorators import login_required, permission_required
+from django.views.generic.edit import CreateView, UpdateView, DeleteView
+
+from catalog.forms import RenewBookForm
+from .models import Book, Author, BookInstance, Genre, Language
+
+import datetime
 
 
 def index(request):
@@ -138,6 +146,7 @@ class GenreDetailView(generic.DetailView):
     model = Genre
 
 
+
 class LanguageListView(generic.ListView):
     """ 언어 목록을 위한 일반 클래스 기반 목록 뷰 """
     model = Language
@@ -159,6 +168,7 @@ class BookInstanceDetailView(generic.DetailView):
     model = BookInstance
     
 
+
 class LoanedBooksByUserListView(LoginRequiredMixin, generic.ListView):
     """ 로그인한 사용자가 대출한 책 목록에 대한 일반 클래스 기반 뷰 """
     model = BookInstance
@@ -171,7 +181,6 @@ class LoanedBooksByUserListView(LoginRequiredMixin, generic.ListView):
             .filter(status__exact='o')
             .order_by('due_back')
         )
-    
 
 class LoanedBooksAllListView(PermissionRequiredMixin, generic.ListView):
     """ 대출 중인 모든 책을 나열하는 일반 클래스 기반 뷰. ( 반환 표시 권한이 있는 사용자만 볼 수 있음 ) """
@@ -182,3 +191,94 @@ class LoanedBooksAllListView(PermissionRequiredMixin, generic.ListView):
 
     def get_queryset(self):
         return BookInstance.objects.filter(status__exact='o').order_by('due_back')
+    
+
+
+@login_required
+@permission_required('catalog.can_mark_returned')
+def renew_book_librarian(request, pk):
+    """ 도서관 사서에 의해 특정 BookInstance를 갱신하는 뷰 """
+    book_instance = get_object_or_404(BookInstance, pk=pk)
+
+    # POST 요청인 경우 form 데이터 처리
+    if request.method == 'POST':
+
+        # form 인스턴스를 생성하고 요청에 의한 데이터로 채운다 ( binding: 바인딩 )
+        book_renewal_form = RenewBookForm(request.POST)
+
+        # form이 유효한지 확인
+        if book_renewal_form.is_valid():
+            # book_renewal_form.cleaned_data 데이터를 요청받은대로 처리 ( 여기서는 그냥 모델 due_back 필드에 할당 )
+            book_instance.due_back = book_renewal_form.cleaned_data['renewal_date']
+            book_instance.save()
+
+            # 새로운 URL로 리디렉션
+            return HttpResponseRedirect(reverse('all-borrowed'))
+        
+    # GET 요청 ( 혹은 다른 메서드 )인 경우, 기본 폼을 생성
+    else:
+        proposed_renewal_date = datetime.date.today() + datetime.timedelta(weeks=3)
+        book_renewal_form = RenewBookForm(initial={'renewal_date': proposed_renewal_date})
+
+    context = {
+        'form': book_renewal_form,
+        'book_instance': book_instance,
+    }
+
+    return render(request, 'catalog/book_renew_librarian.html', context)
+
+
+
+class AuthorCreate(PermissionRequiredMixin, CreateView):
+    model = Author
+    fields = ['first_name', 'last_name', 'date_of_birth', 'date_of_death']
+    initial = {'date_of_death': '11/11/2023'}
+    permission_required = 'catalog.add_author'
+
+class AuthorUpdate(PermissionRequiredMixin, UpdateView):
+    model = Author
+    # 권장하지 않음 ( 더 많은 필드가 추가될 경우 잠재적인 보안 문제가 발생할 수 있음 )
+    fields = '__all__'
+    permission_required = 'catalog.change_author'
+
+class AuthorDelete(PermissionRequiredMixin, DeleteView):
+    model = Author
+    success_url = reverse_lazy('authors')
+    permission_required = 'catalog.delete_author'
+
+    def form_valid(self, form):
+        try:
+            self.object.delete()
+            return HttpResponseRedirect(self.success_url)
+        except Exception as e:
+            return HttpResponseRedirect(
+                reverse("author-delete", kwargs={"pk": self.object.pk})
+            )
+        
+
+
+class BookCreate(PermissionRequiredMixin, CreateView):
+    model = Book
+    fields = ['title', 'author', 'summary', 'isbn', 'genre', 'language']
+    permission_required = 'catalog.add_book'
+
+
+class BookUpdate(PermissionRequiredMixin, UpdateView):
+    model = Book
+    fields = ['title', 'author', 'summary', 'isbn', 'genre', 'language']
+    permission_required = 'catalog.change_book'
+
+
+class BookDelete(PermissionRequiredMixin, DeleteView):
+    model = Book
+    success_url = reverse_lazy('books')
+    permission_required = 'catalog.delete_book'
+
+    def form_valid(self, form):
+        try:
+            self.object.delete()
+            return HttpResponseRedirect(self.success_url)
+        except Exception as e:
+            return HttpResponseRedirect(
+                reverse("book-delete", kwargs={"pk": self.object.pk})
+            )
