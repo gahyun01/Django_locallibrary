@@ -82,7 +82,7 @@ def index(request):
 
 
 
-# 책 목록을 표시하는 뷰
+# 책 목록을 위한 뷰
 class BookListView(generic.ListView):
     """ 책 목록에 대한 일반 클래스 기반 뷰 """
     model = Book
@@ -121,6 +121,7 @@ class BookDetailView(generic.DetailView):
     
 
 
+# 저자 목록을 위한 뷰
 class AuthorListView(generic.ListView):
     """ 저자 목록에 대한 일반 클래스 기반 뷰 """
     model = Author
@@ -136,6 +137,7 @@ class AuthorDetailView(generic.DetailView):
 
 
 
+# 장르 목록을 위한 뷰
 class GenreListView(generic.ListView):
     """ 장르 목록을 위한 일반 클래스 기반 목록 뷰 """
     model = Genre
@@ -147,6 +149,7 @@ class GenreDetailView(generic.DetailView):
 
 
 
+# 언어 목록을 위한 뷰
 class LanguageListView(generic.ListView):
     """ 언어 목록을 위한 일반 클래스 기반 목록 뷰 """
     model = Language
@@ -158,6 +161,7 @@ class LanguageDetailView(generic.DetailView):
 
 
 
+# 책 인스턴스 목록을 위한 뷰
 class BookInstanceListView(generic.ListView):
     """ 책 목록을 위한 일반 클래스 기반 뷰 """
     model = BookInstance
@@ -169,6 +173,7 @@ class BookInstanceDetailView(generic.DetailView):
     
 
 
+# 로그인한 사용자가 대출한 책 목록에 대한 뷰
 class LoanedBooksByUserListView(LoginRequiredMixin, generic.ListView):
     """ 로그인한 사용자가 대출한 책 목록에 대한 일반 클래스 기반 뷰 """
     model = BookInstance
@@ -182,6 +187,7 @@ class LoanedBooksByUserListView(LoginRequiredMixin, generic.ListView):
             .order_by('due_back')
         )
 
+# 대출 중인 모든 책을 나열하는 뷰 ( 사서용 )
 class LoanedBooksAllListView(PermissionRequiredMixin, generic.ListView):
     """ 대출 중인 모든 책을 나열하는 일반 클래스 기반 뷰. ( 반환 표시 권한이 있는 사용자만 볼 수 있음 ) """
     model = BookInstance
@@ -194,6 +200,7 @@ class LoanedBooksAllListView(PermissionRequiredMixin, generic.ListView):
     
 
 
+# 사서가 책을 갱신할 수 있도록 뷰
 @login_required
 @permission_required('catalog.can_mark_returned')
 def renew_book_librarian(request, pk):
@@ -229,6 +236,7 @@ def renew_book_librarian(request, pk):
 
 
 
+# 저자 생성, 업데이트 및 삭제를 위한 뷰
 class AuthorCreate(PermissionRequiredMixin, CreateView):
     model = Author
     fields = ['first_name', 'last_name', 'date_of_birth', 'date_of_death']
@@ -257,17 +265,16 @@ class AuthorDelete(PermissionRequiredMixin, DeleteView):
         
 
 
+# 책 생성, 업데이트 및 삭제를 위한 뷰
 class BookCreate(PermissionRequiredMixin, CreateView):
     model = Book
     fields = ['title', 'author', 'summary', 'isbn', 'genre', 'language']
     permission_required = 'catalog.add_book'
 
-
 class BookUpdate(PermissionRequiredMixin, UpdateView):
     model = Book
     fields = ['title', 'author', 'summary', 'isbn', 'genre', 'language']
     permission_required = 'catalog.change_book'
-
 
 class BookDelete(PermissionRequiredMixin, DeleteView):
     model = Book
@@ -282,3 +289,58 @@ class BookDelete(PermissionRequiredMixin, DeleteView):
             return HttpResponseRedirect(
                 reverse("book-delete", kwargs={"pk": self.object.pk})
             )
+        
+
+
+# 장르 생성, 업데이트 및 삭제를 위한 뷰
+class GenreCreate(PermissionRequiredMixin, CreateView):
+    model = Genre
+    fields = ['name', ]
+    permission_required = 'catalog.add_genre'
+
+class GenreUpdate(PermissionRequiredMixin, UpdateView):
+    model = Genre
+    fields = ['name', ]
+    permission_required = 'catalog.change_genre'
+
+class GenreDelete(PermissionRequiredMixin, DeleteView):
+    model = Genre
+    success_url = reverse_lazy('genres')
+    permission_required = 'catalog.delete_genre'
+
+
+
+# 언어 생성, 업데이트 및 삭제를 위한 뷰
+class LanguageCreate(PermissionRequiredMixin, CreateView):
+    model = Language
+    fields = ['name', ]
+    permission_required = 'catalog.add_language'
+
+class LanguageUpdate(PermissionRequiredMixin, UpdateView):
+    model = Language
+    fields = ['name', ]
+    permission_required = 'catalog.change_language'
+
+class LanguageDelete(PermissionRequiredMixin, DeleteView):
+    model = Language
+    success_url = reverse_lazy('languages')
+    permission_required = 'catalog.delete_language'
+
+
+
+# 책 인스턴스 생성, 업데이트 및 삭제를 위한 뷰
+class BookInstanceCreate(PermissionRequiredMixin, CreateView):
+    model = BookInstance
+    fields = ['book', 'imprint', 'due_back', 'borrower', 'status']
+    permission_required = 'catalog.add_bookinstance'
+
+class BookInstanceUpdate(PermissionRequiredMixin, UpdateView):
+    model = BookInstance
+    # fields = "__all__"
+    fields = ['imprint', 'due_back', 'borrower', 'status']
+    permission_required = 'catalog.change_bookinstance'
+
+class BookInstanceDelete(PermissionRequiredMixin, DeleteView):
+    model = BookInstance
+    success_url = reverse_lazy('bookinstances')
+    permission_required = 'catalog.delete_bookinstance'
