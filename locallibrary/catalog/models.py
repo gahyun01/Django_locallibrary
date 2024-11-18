@@ -4,12 +4,14 @@ from django.db import models
 from django.urls import reverse
 from django.db.models import UniqueConstraint
 from django.db.models.functions import Lower
+from django.conf import settings
+from django.contrib.auth.models import User
+
 import uuid  # 고유한 북 인스턴스에 필요
 from datetime import date
-from django.conf import settings  # 사용자를 차용인으로 지정
 
 class MyModelName(models.Model):
-    """ 모델 클래스에서 파생된 모델을 정의하는 일반적인 클래스임 """
+    """ 모델 클래스에서 파생된 모델을 정의하는 일반적인 클래스 """
 
     # Fields
     my_field_name = models.CharField(max_length=20, help_text='Enter field documentation')
@@ -54,6 +56,7 @@ class Genre(models.Model):
             ),
         ]
 
+
 class Language(models.Model):
     """ 언어를 나타내는 모델(예: 영어, 프랑스어, 일본어 등) """
     name = models.CharField(max_length=200,
@@ -76,6 +79,7 @@ class Language(models.Model):
                 violation_error_message = "Language already exists (case insensitive match)"
             ),
         ]
+
 
 class Book(models.Model):
     """ 책을 나타내는 모델(특정 책 사본은 아님) """
@@ -113,6 +117,7 @@ class Book(models.Model):
         """ 모델 개체를 표현하기 위한 문자열 """
         return self.title
 
+
 class BookInstance(models.Model):
     """ 책의 특정 사본을 나타내는 모델(즉, 라이브러리에서 빌릴 수 있음) """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4,
@@ -120,8 +125,7 @@ class BookInstance(models.Model):
     book = models.ForeignKey('Book', on_delete=models.RESTRICT, null=True)
     imprint = models.CharField(max_length=200)
     due_back = models.DateField(null=True, blank=True)
-    borrower = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    borrower = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
 
     @property
     def is_overdue(self):
@@ -144,6 +148,7 @@ class BookInstance(models.Model):
 
     class Meta:
         ordering = ['due_back']
+        # 사용자가 책을 대출할 수 있는지 여부를 결정하는 데 사용
         permissions = (("can_mark_returned", "Set book as returned"),)
 
     def get_absolute_url(self):

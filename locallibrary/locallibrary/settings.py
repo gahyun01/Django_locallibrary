@@ -125,3 +125,9 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# 로그인 후 홈 URL로 리디렉션 ( Default redirects to '/accounts/profile/' )
+LOGIN_REDIRECT_URL = '/'
+
+# 콘솔로 전송된 모든 이메일이 기록되도록 설정 ( 비밀번호 재설정 이메일 확인 )
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

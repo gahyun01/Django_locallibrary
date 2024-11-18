@@ -28,3 +28,9 @@ urlpatterns = [
     path('catalog/', include('catalog.urls')),
     path('', RedirectView.as_view(url='/catalog/', permanent=True)),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+
+# 장고 사이트 인증 URL 추가 ( login, logout, password management )
+urlpatterns += [
+    path('accounts/', include('django.contrib.auth.urls')),
+]
