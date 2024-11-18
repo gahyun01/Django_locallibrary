@@ -131,3 +131,5 @@ LOGIN_REDIRECT_URL = '/'
 
 # 콘솔로 전송된 모든 이메일이 기록되도록 설정 ( 비밀번호 재설정 이메일 확인 )
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
